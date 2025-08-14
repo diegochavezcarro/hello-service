@@ -1,0 +1,27 @@
+# Etapa 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copiamos y restauramos
+COPY src/HelloService/HelloService.csproj ./HelloService/
+RUN dotnet restore ./HelloService/HelloService.csproj
+
+# Copiamos el resto del código y publicamos
+COPY src/HelloService/ ./HelloService/
+WORKDIR /src/HelloService
+RUN dotnet publish -c Release -o /app/publish
+
+# Etapa 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+
+# Configuración de entorno
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_EnableDiagnostics=0
+
+# Copiamos desde la etapa de build solo el resultado publicado
+COPY --from=build /app/publish .
+
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "HelloService.dll"]
